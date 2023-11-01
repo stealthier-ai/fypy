@@ -1,0 +1,24 @@
+name: fypy_docs
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - pandas
+  - shapely
+  - pyproj
+  - geopy
+  - matplotlib
+  - sphinx
+  - pillow
+  - contextily
+  - geoplot
+  - sphinx-gallery
+  - doc2dash
+  - matplotlib-scalebar
+  # specify additional dependencies to reduce solving for conda
+  - gdal
+  - libgdal
+  - proj
+  - geos
+  - pip
+

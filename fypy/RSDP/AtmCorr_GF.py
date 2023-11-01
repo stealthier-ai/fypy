@@ -90,7 +90,6 @@ class AtmCorr_GF(AtmCorr):
             self.setParam(nowdate, metedata, SatID, InstID, BandID+1)
             AtcCofa, AtcCofb, AtcCofc = self.corrCoeff()
 
-
             i = 0
             j = 0
             #进度条参数
@@ -230,8 +229,8 @@ class AtmCorr_GF(AtmCorr):
         srcdir = os.path.dirname(srcfile)
         shutil.copy(rpcfile, srcdir)
 
-        dataset = gdal.Open(srcfile, gdal.GA_Update)#读入影像
-        rpc = dataset.GetMetadata("RPC")#读入影像，rpc
+        dataset = gdal.Open(srcfile, gdal.GA_Update)    # 读入影像
+        rpc = dataset.GetMetadata("RPC")                # 读入影像，rpc
 
         if demfile is None :
             dst_ds = gdal.Warp(dstfile, dataset, dstSRS='EPSG:4326',
@@ -241,7 +240,7 @@ class AtmCorr_GF(AtmCorr):
                                rpc=True, #使用RPC模型进行校正
                                warpOptions=['INIT_DEST=NO_DATA'],
                                creationOptions=["COMPRESS=LZW", "BigTIFF=YES"])
-        else:
+        else :
             dst_ds = gdal.Warp(dstfile, dataset, dstSRS='EPSG:4326',
                                # xRes=resolution,
                                # yRes=resolution,

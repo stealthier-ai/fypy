@@ -26,6 +26,7 @@ dependencies:
   - sphinx
   - sphinx-gallery
   - doc2dash
+  - dask
 
 
 

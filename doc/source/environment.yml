@@ -29,6 +29,7 @@ dependencies:
   - dask
   - xarray
   - pyresample
+  - Py6S
 
 
 

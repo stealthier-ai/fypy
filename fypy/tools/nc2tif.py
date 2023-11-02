@@ -24,7 +24,7 @@ from fypy.tools import writetiff
 
 def nc2tif(outname, filename, sdsname, fillvalue=-999):
     '''
-    将NC文件中的数据集根据lat\lon维度进行投影输出geotiff文件
+    将NC文件中的数据集根据lat、lon维度进行投影输出geotiff文件
 
     Parameters
     ----------

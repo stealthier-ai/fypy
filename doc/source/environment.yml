@@ -28,6 +28,7 @@ dependencies:
   - doc2dash
   - dask
   - xarray
+  - pyresample
 
 
 

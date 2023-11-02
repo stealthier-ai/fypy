@@ -34,29 +34,44 @@ class AtmCorr_FY3D_MERSI(AtmCorr):
 
 
     def FLAASH(self, nowdate, srcdata, lat, lon,
-                     suna, sunz, sata, satz,
-                     SatID, InstID, BandId, dem=0.001, fillvalue=65535):
+               suna, sunz, sata, satz,
+               SatID, InstID, BandId,
+               dem=0.001, fillvalue=65535):
         '''
         基于Py6S进行大气校正
+
         Parameters
         ----------
-        nowdate
-        srcdata : mW/(m2.cm-1.sr)  --> µW/(cm2 * sr * µm)
-        lat
-        lon
-        suna
-        sunz
-        sata
-        satz
-        dem
-        SatID
-        InstID
-        BandId
-        fillvalue
+        nowdate ： datetime
+            数据时间
+        srcdata : array
+            输入数据
+        lat : array
+            纬度
+        lon : array
+            经度
+        suna ：
+            太阳方位角，degree
+        sunz ：
+            太阳天顶角，degree
+        sata ：
+            卫星方位角， degree
+        satz ：
+            卫星天顶角， degree
+        dem ：
+            高程， 单位：米
+        SatID ：str
+            卫星ID， FY3D
+        InstID ：str
+            仪器ID， MERSI
+        BandId ：int
+            波段ID，从1开始
+        fillvalue ：float
+            填充值
 
         Returns
         -------
-
+            订正后的反射率
         '''
         # 表观反射率转换为辐射亮度值
         CalCoeffFile = os.path.join(EXEPATH, "resp", "FY",

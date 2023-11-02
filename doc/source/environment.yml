@@ -27,6 +27,7 @@ dependencies:
   - sphinx-gallery
   - doc2dash
   - dask
+  - xarray
 
 
 

@@ -42,7 +42,7 @@ mod_expy=Extension('',
 
 
 name = 'fypy'
-description = "fypy Library for FENGYUN Satellite "
+description = "fypy Package for FENGYUN Satellite "
 readme = open('README.md', encoding="utf-8").read()
 content_type='text/markdown'
 

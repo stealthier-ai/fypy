@@ -15,4 +15,4 @@
 '''
 
 from fypy.fy4.fy4scene import fy4scene
-from fypy.fy4.fy4searchtable import fy4searchtable
+from fypy.fy4.fy4core import fy4searchtable

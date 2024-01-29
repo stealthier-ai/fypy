@@ -14,6 +14,4 @@
 
 '''
 
-from .fy3Block10 import FY3Block10
-from .fy3Orbit import FY3Orbit
-from .fy3L1Pro import fy3L1Pro
+from .fy3scene import fy3scene

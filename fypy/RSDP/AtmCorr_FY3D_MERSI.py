@@ -33,10 +33,8 @@ class AtmCorr_FY3D_MERSI(AtmCorr):
         super(AtmCorr_FY3D_MERSI, self).__init__()
 
 
-    def FLAASH(self, nowdate, srcdata, lat, lon,
-               suna, sunz, sata, satz,
-               SatID, InstID, BandId,
-               dem=0.001, fillvalue=65535):
+    def FLAASH(self, nowdate, srcdata, lat, lon, suna, sunz, sata, satz,
+               SatID, InstID, BandId, dem=0.001, fillvalue=65535):
         '''
         基于Py6S进行大气校正
 
@@ -50,15 +48,15 @@ class AtmCorr_FY3D_MERSI(AtmCorr):
             纬度
         lon : array
             经度
-        suna ：
+        suna ：array or float
             太阳方位角，degree
-        sunz ：
+        sunz ：array or float
             太阳天顶角，degree
-        sata ：
+        sata ：array or float
             卫星方位角， degree
-        satz ：
+        satz ：array or float
             卫星天顶角， degree
-        dem ：
+        dem ：array or float
             高程， 单位：米
         SatID ：str
             卫星ID， FY3D

@@ -208,3 +208,7 @@ def gettype(datatype):
         return gdal.GDT_Float64
     else:
         return gdal.GDT_Unknown
+
+
+
+

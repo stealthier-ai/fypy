@@ -18,31 +18,36 @@ import sys
 import numpy as np
 from osgeo import gdal, osr
 
-from fypy.fy4.fy4searchtable import fy4searchtable
+from fypy.fy4.fy4core import fy4searchtable
 
 from fypy.tools.tifpro import writetiff
-from fypy.tools.ncpro import writenc
+from fypy.tools.ncpro import writenc, writenc_fileinfo
 from fypy.tools.hdfpro import writehdf
+
+from fypy.fy4.fy4core import GetNameInfo
+from fypy.fy4.fy4config import AreaInfo
+from PIL import Image
+RATE = 4
 
 
 class fy4scene(fy4searchtable) :
 
-    def __init__(self, subpoint, resolution):
-        '''
+    def __init__(self, filename=None, satID=None, instID=None, prodID=None,
+                 sublon=None, resolution=None, regionID=None, levelID=None,
+                 startTime=None, endTime=None, proj=None):
+        ''' 通过文件名获取文件相关信息 '''
 
-        Parameters
-        ----------
-        subpoint: float
-            星下点
-        resolution: float
-            数据图像的分辨率，单位为degree
-        '''
+        self.Parse(filename, satID, instID, prodID, sublon, regionID,
+                   levelID, startTime, endTime, resolution, proj)
 
-        super().__init__(subpoint, resolution)
+        if (not hasattr(self, 'SubLon')) or (not hasattr(self, 'Resolution')) :
+            raise Exception('请设置【sublon】和【resolution】参数')
 
-    def clip(self, data, shpname=None, outputBounds=None,
-             srcNodata=65535, dstNodata=None,
-             dstSRS='EPSG:4326'):
+        super().__init__(self.SubLon, self.Resolution)
+
+    def Clip(self, data, shpname=None, extent=None,
+             srcNodata=65535, dstNodata=None, dstSRS='EPSG:4326',
+             resampleAlg='near'):
         '''
         将标称投影转换成等经纬投影（NOM->GLL）
 
@@ -52,7 +57,7 @@ class fy4scene(fy4searchtable) :
             输入数据
         shpname: str, optional
             掩膜的面矢量（polygon）
-        outputBounds : tuple, optional
+        extent : list, optional
             output bounds as (minX, minY, maxX, maxY) in target SRS
         dstNodata : float
             数据填充值
@@ -79,46 +84,37 @@ class fy4scene(fy4searchtable) :
         # 写入数据
         if im_bands == 1:
             memDs.GetRasterBand(1).WriteArray(im_data)
+            if srcNodata is not None:
+                memDs.GetRasterBand(1).SetNoDataValue(float(srcNodata))
         else:
             for i in range(im_bands):
                 memDs.GetRasterBand(i+1).WriteArray(im_data[i])
+                if srcNodata is not None:
+                    memDs.GetRasterBand(i+1).SetNoDataValue(float(srcNodata))
 
+        # 设置参考投影
         srs = osr.SpatialReference()
         srs.ImportFromProj4('+proj=geos +h=35785863 +a=6378137.0 +b=6356752.3 '
-                            '+lon_0={subpoint} +no_defs'.format(
-                                    subpoint=self.subpoint ))
+                            '+lon_0={sublon} +no_defs'.format(sublon=self.SubLon))
         memDs.SetProjection(srs.ExportToWkt())
-        memDs.SetGeoTransform([-5496000, self.resolution*100*1000, 0,
-                               5496000, 0, -self.resolution*100*1000])
 
+        # 设置仿射变换
+        memDs.SetGeoTransform([-5496000, self.Resolution*100*1000, 0,
+                               5496000, 0, -self.Resolution*100*1000])
+
+        # 影像裁剪
         warpDs = gdal.Warp('', memDs, format='MEM', dstSRS=dstSRS,
                            cutlineDSName=shpname, cropToCutline=True,
-                           outputBounds=outputBounds, resampleAlg='near',
-                           xRes=self.resolution, yRes=self.resolution,
+                           outputBounds=extent, resampleAlg=resampleAlg,
+                           xRes=self.Resolution, yRes=self.Resolution,
                            srcNodata=srcNodata, dstNodata=dstNodata)
 
         if warpDs is None :
-            return None, None, None
+            return None
 
-        dstdata = warpDs.ReadAsArray()     #获取数据
-        trans = warpDs.GetGeoTransform()    #获取仿射矩阵信息
-        prj = warpDs.GetProjection()       #获取投影信息
+        return warpDs
 
-        self.width = warpDs.RasterXSize #栅格矩阵的列数
-        self.height = warpDs.RasterYSize #栅格矩阵的行数
-        self.bands = warpDs.RasterCount #栅格矩阵的波段数
-
-        self.dstdata = dstdata
-        self.trans = trans
-        self.prj = prj
-        self.dstNodata = dstNodata
-        self.lon = trans[0] + trans[1] * np.arange(self.width)
-        self.lat = trans[3] + trans[5] * np.arange(self.height)
-        del warpDs
-
-        return dstdata, trans, prj
-
-    def getL1Data(self, filename, bandID=1, fillvalue=65535):
+    def Calibration(self, filename, bandID=1, fillvalue=65535):
         '''
         读取FY4 L1数据，并完成辐射定标
         Parameters
@@ -140,10 +136,10 @@ class fy4scene(fy4searchtable) :
         import h5py
         fp = h5py.File(filename, 'r')
         # 转换到区域的行列号（考虑去除图像偏移）
-        Begin_Line_Number = fp.attrs['Begin Line Number'][0]
-        End_Line_Number = fp.attrs['End Line Number'][0]
+        Begin_Line_Number  = fp.attrs['Begin Line Number'][0]
+        End_Line_Number    = fp.attrs['End Line Number'][0]
         Begin_Pixel_Number = fp.attrs['Begin Pixel Number'][0]
-        End_Pixel_Number = fp.attrs['End Pixel Number'][0]
+        End_Pixel_Number   = fp.attrs['End Pixel Number'][0]
 
         cal = fp['CALChannel%02d' %(bandID)][:]
         dn = fp['NOMChannel%02d' %(bandID)][:]
@@ -162,7 +158,7 @@ class fy4scene(fy4searchtable) :
 
         return data
 
-    def getGEOData(self, filename, sdsname, fillvalue=65535):
+    def GetGEOData(self, filename, sdsname, fillvalue=65535):
         import h5py
         fp = h5py.File(filename, 'r')
         data1 = fp[sdsname][:]
@@ -181,6 +177,37 @@ class fy4scene(fy4searchtable) :
 
         return data
 
+    def load(self, filename, ProdID=None):
+        vis045 = self.Calibration(filename, bandID=1)
+        vis065 = self.Calibration(filename, bandID=2)
+        vis085 = self.Calibration(filename, bandID=3)
+
+
+        vis055 = self.set_green(vis045, vis065)
+
+        rr = np.array(vis065*255, dtype=np.uint8)
+        gg = np.array(vis055*255, dtype=np.uint8)
+        bb = np.array(vis045*255, dtype=np.uint8)
+
+        vm = Image.merge('RGB', [self.Arr2Img(i) for i in (rr, gg, bb)])
+        vm.save(r'D:\DATA\FY4A\test.png', quality=90)
+
+    def Arr2Img(self, arr):
+        if arr.dtype == np.uint8:
+            return Image.fromarray(arr, "L")
+        if arr.dtype == np.uint16:
+            return Image.fromarray(self.T0_255(arr), "L")
+        return Image.fromarray(self.T0_255(arr.astype('u2')), "L")
+
+    def T0_255(self, raw):
+        return (raw >> RATE).astype(np.uint8)
+
+    def show(self, filename, ProdID=None):
+        pass
+
+    def SaveThematic(self, outname, srcfile, ProdID=None):
+        pass
+
     def set_green(self, vis047, vis065, fractions=(1.0, 0.13, 0.87)):
         ''' 用红光和蓝光通道模拟绿光通道 '''
 
@@ -188,21 +215,142 @@ class fy4scene(fy4searchtable) :
 
         return res
 
-    def to_tiff(self, outname):
-        writetiff(outname, self.dstdata, self.trans, self.prj, fillvalue=self.dstNodata)
+    def DS2Tiff(self, outname, srcDS):
+        ''' 保存为GeoTiff文件 '''
 
-    def to_netcdf(self, outname):
-        writenc(outname, 'latitude', self.lat, overwrite=1)
-        writenc(outname, 'longitude', self.lon, overwrite=0)
-        if self.bands == 1 :
-            writenc(outname, 'data', self.dstdata, dimension=('latitude', 'longitude'), overwrite=0)
+        data  = srcDS.ReadAsArray()
+        trans = srcDS.GetGeoTransform()
+        prj   = srcDS.GetProjection()
+        fillvalue = srcDS.GetRasterBand(1).GetNoDataValue()
+
+        writetiff(outname, data, trans, prj, fillvalue=fillvalue)
+
+    def DS2Netcdf(self, outname, sdsname, srcDS):
+        ''' 保存为NetCDF文件 '''
+
+        if srcDS is None :
+            raise Exception('srcDS为None')
+
+        data  = srcDS.ReadAsArray()
+        trans = srcDS.GetGeoTransform()
+        prj   = srcDS.GetProjection()
+        fillvalue = srcDS.GetRasterBand(1).GetNoDataValue()
+
+        if len(data.shape) == 2 :
+            level, (height, width) = 1, data.shape
+        elif len(data.shape) == 3 :
+            level, height, width = data.shape
         else:
-            writenc(outname, 'level', np.arange(self.bands), overwrite=0)
-            writenc(outname, 'data', self.dstdata, dimension=('level', 'latitude', 'longitude'),
-                    overwrite=0, fill_value=self.dstNodata)
+            raise Exception('仅暂支持2D或3D数据的输出')
 
-    def to_hdf(self, outname):
-        writehdf(outname, 'data', self.dstdata, overwrite=1)
+        lon = trans[0] + trans[1] * np.arange(width)
+        lat = trans[3] + trans[5] * np.arange(height)
+
+
+        dictfileinfo = {
+            'trans' : trans,
+            'prj'   : prj
+        }
+        writenc_fileinfo(outname, dictfileinfo=dictfileinfo, overwrite=1)
+        writenc(outname, 'latitude',  lat, overwrite=0)
+        writenc(outname, 'longitude', lon, overwrite=0)
+        if level == 1 :
+            writenc(outname, sdsname, data, dimension=('latitude', 'longitude'), overwrite=0)
+        else:
+            writenc(outname, 'level', np.arange(level), overwrite=0)
+            writenc(outname, sdsname, data, dimension=('level', 'latitude', 'longitude'),
+                    overwrite=0, fill_value=fillvalue)
+
+    def DS2Hdf(self, outname, sdsname, srcDS):
+        ''' 保存为HDF5文件 '''
+        if srcDS is None :
+            raise Exception('srcDS为None')
+
+        data  = srcDS.ReadAsArray()
+        trans = srcDS.GetGeoTransform()
+        prj   = srcDS.GetProjection()
+        fillvalue = srcDS.GetRasterBand(1).GetNoDataValue()
+        if data is None :
+            raise Exception('读取图层数据失败')
+
+        if len(data.shape) == 2 :
+            level, (height, width) = 1, data.shape
+        elif len(data.shape) == 3 :
+            level, height, width = data.shape
+        else:
+            raise Exception('仅暂支持2D或3D数据的输出')
+
+        lon = trans[0] + trans[1] * np.arange(width)
+        lat = trans[3] + trans[5] * np.arange(height)
+        dictfileinfo = {
+            'trans' : trans,
+            'prj'   : prj
+        }
+        dictsdsinfo = {
+            'name' : sdsname,
+            'fillvalue' : fillvalue
+        }
+        writenc_fileinfo(outname, dictfileinfo=dictfileinfo, overwrite=1)
+        writehdf(outname,  'latitude',  lat, overwrite=0)
+        writehdf(outname, 'longitude',  lon, overwrite=0)
+        writehdf(outname,     sdsname, data, overwrite=0, dictsdsinfo=dictsdsinfo)
+
+    def Parse(self, filename=None, SatID=None, InstID=None, ProdID=None, SubLon=None,
+              RegionID=None, LevelID=None, StartTime=None, EndTime=None, Resolution=None,
+              Proj=None):
+        nameinfo = {}
+        if filename is not None :
+            nameinfo = GetNameInfo(filename)
+
+        if SatID is not None :
+            self.SatID = SatID
+        elif 'SatID' in nameinfo :
+            self.SatID = nameinfo['SatID']
+
+        if InstID is not None :
+            self.InstID = InstID
+        elif 'InstID' in nameinfo :
+            self.InstID = nameinfo['InstID']
+
+        if ProdID is not None :
+            self.ProdID = ProdID
+        elif 'ProdID' in nameinfo :
+            self.ProdID = nameinfo['ProdID']
+
+        if Proj is not None :
+            self.Proj = Proj
+        elif 'Proj' in nameinfo :
+            self.Proj = nameinfo['Proj']
+
+        if RegionID is not None :
+            self.RegionID = RegionID
+        elif 'RegionID' in nameinfo :
+            self.RegionID = nameinfo['RegionID']
+
+        if LevelID is not None :
+            self.LevelID = LevelID
+        elif 'LevelID' in nameinfo :
+            self.LevelID = nameinfo['LevelID']
+
+        if StartTime is not None :
+            self.StartTime = StartTime
+        elif 'StartTime' in nameinfo :
+            self.StartTime = nameinfo['StartTime']
+
+        if EndTime is not None :
+            self.EndTime = EndTime
+        elif 'EndTime' in nameinfo :
+            self.EndTime = nameinfo['EndTime']
+
+        if Resolution is not None :
+            self.Resolution = Resolution
+        elif 'Resolution' in nameinfo :
+            self.Resolution = nameinfo['Resolution']
+
+        if SubLon is not None :
+            self.SubLon = SubLon
+        elif 'SubLon' in nameinfo :
+            self.SubLon = float(nameinfo['SubLon'].replace('E', ''))/10.0
 
     def _gettype(self, datatype):
         ''' 根据numpy的数据类型，匹配GDAL中的数据类型 '''

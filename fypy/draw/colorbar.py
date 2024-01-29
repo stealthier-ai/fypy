@@ -134,10 +134,13 @@ def getColorList(cbfile, vmin=None, vmax=None):
 
 class colorbar(object) :
 
-    def __init__(self, cblist, width=1260, height=180, cbtitle=None,
-                 vmin=None, vmax=None, orientation='h', fmt='%.1f', font=None,
-                 ticks=None, ticklabels=None, tickfontsize=45, titlesize=55,
-                 loc='center', split=False, FontTTF=None, outname=None, **kwargs):
+    def __init__(self, cblist, width=1260, height=180,
+                 cbtitle=None, titlesize=55,
+                 ticks=None, ticklabels=None, tickfontsize=45,
+                 vmin=None, vmax=None, orientation=None,
+                 fmt='%.1f', font=None, FontTTF=None,
+                 loc='center', split=False, cbset=None,
+                 outname=None, **kwargs):
         '''
         loc : str
             tick的位置，'center' or 'centre', 'left', 'right'
@@ -147,103 +150,29 @@ class colorbar(object) :
 
         self.cblist = self.checkcblist(cblist)
 
-        self.cbwidth = width
-        self.cbheight = height
+        self.set_cbsize(width, height)
 
-        if cbtitle is not None :
-            self.title = cbtitle
-        else:
-            self.title = None
+        if cbset is None : cbset={}
 
-        self.vmin = vmin
-        self.vmax = vmax
+        self.set_vmin(vmin, cbset=cbset)
+        self.set_vmax(vmax, cbset=cbset)
+
+        # 设置图例方向 h:水平 v:垂直
+        self.set_cbdir(orientation, cbset=cbset)
+
+        # 设置图例块是否分隔
+        self.set_cbsplit(split=split, cbset=cbset)
+
+        # 设置标题以及字体、大小
+        self.set_cbtitle(cbtitle=cbtitle, fontsize=titlesize, font=font, FontTTF=FontTTF)
+
+        self.set_ticks(ticks=ticks, ticklabels=ticklabels, tickfontsize=tickfontsize,
+                       loc=loc, fmt=fmt, font=font, FontTTF=FontTTF)
 
         self._colorkwargs = kwargs
-        self.orientation = orientation
-        if self.orientation in ['h', 'horizontal'] :
-            self.colorbardir = True
-        else:
-            self.colorbardir = False
-
-        if font is None :
-            self._colorbarfont = self.setfont(FontTTF, tickfontsize)
-            self._titlefont = self.setfont(FontTTF, titlesize)
-        else :
-            self._colorbarfont = font
-            self._titlefont = font
-
-        self._fmt = fmt
-        self.loc = loc
-
-        self.ticks = ticks
-        self.ticklabels = ticklabels
-
-        self.split = split
 
         if outname is not None :
             self.save(outname)
-
-    def set_cbsize(self, width=1260, height=180):
-        self.cbwidth = width
-        self.cbheight = height
-
-    def set_cbtitle(self, cbtitle, fontsize=None):
-        self.title = cbtitle
-
-        if fontsize is not None :
-            self.set_cbtitle_font(fontsize=fontsize)
-
-    def set_cbtitle_font(self, FontTTF, fontsize):
-
-        self.fontsize = fontsize
-        self._titlefont = ImageFont.truetype(font=FontTTF, size=fontsize)
-
-    def set_vmin(self, vmin=None):
-        self.vmin = vmin
-
-    def set_vmax(self, vmax=None):
-        self.vmax = vmax
-
-    def set_cbdir(self, orientation='h'):
-        self.orientation = orientation
-        if self.orientation in ['h', 'horizontal'] :
-            self.colorbardir = True
-        else:
-            self.colorbardir = False
-
-    def set_cbsplit(self, split : bool):
-        self.split = split
-
-    def set_ticks(self, ticks):
-        self.ticks = ticks
-
-    def set_ticklabels(self, ticklabels, fmt='%.1f'):
-
-        self.ticklabels = ticklabels
-        self._fmt = fmt
-
-    def set_ticklabel_loc(self, loc):
-        '''
-
-        Parameters
-        ----------
-        loc : str
-            tick的位置，'center' or 'centre', 'left', 'right'
-                       'center' or 'centre', 'top', 'bottom'
-
-        Returns
-        -------
-
-        '''
-
-        self.loc = loc
-
-    def set_ticklabel_font(self, FontTTF, fontsize):
-        ''' 设置tick label的字体和字体大小 '''
-
-        self.fontsize = fontsize
-
-        self._colorbarfont = ImageFont.truetype(font=FontTTF, size=fontsize)
 
     def save(self, outname, **kwargs):
 
@@ -287,8 +216,6 @@ class colorbar(object) :
             self.draw_interpolated_colorbar_img(cblist['INTERPOLATED'],
                                                 ticks=ticks, ticklabels=ticklabels, title=title, **kwargs)
 
-
-
     def draw_exact_colorbar_img(self, cb, ticks=None, title=None, rows=None, cols=None,
                                 outline=(0,0,0), width=2, **kwargs):
         '''
@@ -318,6 +245,127 @@ class colorbar(object) :
             self.set_exact_cb_h(cb, colorbarcount, title, rows=rows, cols=cols, outline=outline, width=width)
         else:
             self.set_exact_cb_v(cb, colorbarcount, title, rows=rows, cols=cols, outline=outline, width=width)
+
+    def draw_discrete_colorbar_img(self, cb, ticks=None, title=None, ticklabels=None, **kwargs):
+        '''
+        # 绘制分类调色板，例如海温、海风等分级显示
+        :param cb:
+        :param ticks:
+        :param title:
+        :param kwargs:
+        :return:
+        '''
+        # 处理colorbar颜色模块
+
+        if self.colorbardir : # 水平colorbar
+            self.set_discrete_cb_h(cb, title, ticks, ticklabels)
+        else:
+            self.set_discrete_cb_v(cb, title, ticks, ticklabels)
+
+    def draw_interpolated_colorbar_img(self, cb, ticks=None, ticklabels=None, title=None, **kwargs):
+
+        # 处理colorbar颜色模块
+        if self.colorbardir :
+            self.set_interpolated_cb_h(cb, title, ticks, ticklabels)
+        else:
+            self.set_interpolated_cb_v(cb, title, ticks, ticklabels)
+
+    def set_cbsize(self, width=1260, height=180):
+        self.cbwidth = width
+        self.cbheight = height
+
+    def set_cbtitle(self, cbtitle, fontsize=None, font=None, FontTTF=None):
+        self.title = cbtitle
+
+        if font is None :
+            self._titlefont = self.setfont(FontTTF, fontsize)
+        else :
+            self._titlefont = font
+
+        if fontsize is not None :
+            self.set_cbtitle_font(FontTTF=FontTTF, fontsize=fontsize)
+
+    def set_cbtitle_font(self, FontTTF, fontsize):
+
+        self.fontsize = fontsize
+        self._titlefont = ImageFont.truetype(font=FontTTF, size=fontsize)
+
+    def set_vmin(self, vmin=None, cbset=None):
+        ''' 设置最小值 '''
+
+        if vmin is None and 'vmin' in cbset :
+            vmin = cbset['vmin']
+        self.vmin = vmin
+
+    def set_vmax(self, vmax=None, cbset=None):
+        ''' 设置最大值 '''
+
+        if vmax is None and 'vmax' in cbset :
+            vmax = cbset['vmax']
+        self.vmax = vmax
+
+    def set_cbdir(self, cbdir, cbset=None):
+        ''' 设置图例方向 '''
+
+        if cbdir is None and 'cbdir' in cbset :
+            cbdir = cbset['cbdir']
+
+        if cbdir is None :
+            self.colorbardir = True
+        elif cbdir in ['h', 'horizontal'] :  # 水平
+            self.colorbardir = True
+        else:                                # 垂直
+            self.colorbardir = False
+
+    def set_cbsplit(self, split=None, cbset=None):
+
+        if split is None and 'split' in cbset :
+            split = cbset['split']
+
+        self.split = split
+
+    def set_ticks(self, ticks=None, ticklabels=None, tickfontsize=None,
+                  loc=None, fmt=None, font=None, FontTTF=None):
+
+        self.ticks = ticks
+        if font is None :
+            self._colorbarfont = self.setfont(FontTTF, tickfontsize)
+        else :
+            self._colorbarfont = font
+
+        self._fmt = fmt
+        self.loc = loc
+
+        self.ticks = ticks
+        self.ticklabels = ticklabels
+
+    def set_ticklabels(self, ticklabels, fmt='%.1f'):
+
+        self.ticklabels = ticklabels
+        self._fmt = fmt
+
+    def set_ticklabel_loc(self, loc):
+        '''
+
+        Parameters
+        ----------
+        loc : str
+            tick的位置，'center' or 'centre', 'left', 'right'
+                       'center' or 'centre', 'top', 'bottom'
+
+        Returns
+        -------
+
+        '''
+
+        self.loc = loc
+
+    def set_ticklabel_font(self, FontTTF, fontsize):
+        ''' 设置tick label的字体和字体大小 '''
+
+        self.fontsize = fontsize
+
+        self._colorbarfont = ImageFont.truetype(font=FontTTF, size=fontsize)
 
     def set_exact_cb_h(self, cb, colorbarcount, title, rows=1, cols=None, outline=(0,0,0), width=2):
         ''' 绘制分类横向colorbar '''
@@ -384,8 +432,8 @@ class colorbar(object) :
 
             posx = int(x1)
             posy = int(y1 + ractangle_h)
-            self.set_ticks_h(self.cbdraw, posx, posy, val,
-                             color_w=ractangle_w, color_h=ractangle_h, label=label)
+            self.draw_ticks_h(self.cbdraw, posx, posy, val,
+                              color_w=ractangle_w, color_h=ractangle_h, label=label)
 
         if isinstance(title, str) :
             title_left = int(left - ranctangle_interval*0.5)
@@ -467,24 +515,8 @@ class colorbar(object) :
                 posy = int(y1)
 
                 # 绘制ticks
-                self.set_ticks_v(self.cbdraw, posx, posy, val,
-                                 color_w=ractangle_w, color_h=ractangle_h, label=label)
-
-    def draw_discrete_colorbar_img(self, cb, ticks=None, title=None, ticklabels=None, **kwargs):
-        '''
-        # 绘制分类调色板，例如海温、海风等分级显示
-        :param cb:
-        :param ticks:
-        :param title:
-        :param kwargs:
-        :return:
-        '''
-        # 处理colorbar颜色模块
-
-        if self.colorbardir : # 水平colorbar
-            self.set_discrete_cb_h(cb, title, ticks, ticklabels)
-        else:
-            self.set_discrete_cb_v(cb, title, ticks, ticklabels)
+                self.draw_ticks_v(self.cbdraw, posx, posy, val,
+                                  color_w=ractangle_w, color_h=ractangle_h, label=label)
 
     def set_discrete_cb_h(self, cb, title, ticks, ticklabels):
         # 设置Y向位置
@@ -540,8 +572,8 @@ class colorbar(object) :
 
             posx = 1.0*icount / count * self._color_w + left
             posy = int(top + self._color_h*1.1)
-            self.set_ticks_h(self.cbdraw, posx, posy, tick,
-                             color_w=self._color_w/count, color_h=self._color_h, label=label)
+            self.draw_ticks_h(self.cbdraw, posx, posy, tick,
+                              color_w=self._color_w/count, color_h=self._color_h, label=label)
 
         if isinstance(title, str) :
             title_left = int(left*1.5 + self._color_w)
@@ -595,16 +627,8 @@ class colorbar(object) :
                 continue
             posx = int(left + self._color_w)
             posy = 1.0*icount / count * self._color_h + top
-            self.set_ticks_v(self.cbdraw, posx, posy, tick,
-                             color_w=self._color_w, color_h=self._color_h/count, label=label)
-
-    def draw_interpolated_colorbar_img(self, cb, ticks=None, ticklabels=None, title=None, alpha=1, **kwargs):
-
-        # 处理colorbar颜色模块
-        if self.colorbardir :
-            self.set_interpolated_cb_h(cb, title, ticks, ticklabels)
-        else:
-            self.set_interpolated_cb_v(cb, title, ticks, ticklabels)
+            self.draw_ticks_v(self.cbdraw, posx, posy, tick,
+                              color_w=self._color_w, color_h=self._color_h/count, label=label)
 
     def set_interpolated_cb_h(self, cb, title, ticks, ticklabels):
         # 设置Y向位置
@@ -672,8 +696,8 @@ class colorbar(object) :
             posx = 1.0 * (tick - self.vmin) / v_total * self._color_w + left
             posy = int(top + self._color_h*1.1)
 
-            self.set_ticks_h(self.cbdraw, posx, posy, tick,
-                             color_w=self._color_w/v_total, color_h=self._color_h, label=label)
+            self.draw_ticks_h(self.cbdraw, posx, posy, tick,
+                              color_w=self._color_w/v_total, color_h=self._color_h, label=label)
 
         if isinstance(title, str) :
             title_left = int(left*1.5 + self._color_w)
@@ -737,8 +761,8 @@ class colorbar(object) :
                 continue
             posx = int(left + self._color_w)
             posy = 1.0*(tick - self.vmin) / v_total * self._color_h + top
-            self.set_ticks_v(self.cbdraw, posx, posy, tick,
-                             color_w=self._color_w, color_h=self._color_h/v_total, label=label)
+            self.draw_ticks_v(self.cbdraw, posx, posy, tick,
+                              color_w=self._color_w, color_h=self._color_h/v_total, label=label)
 
     def _set_colorbar_title(self, draw, left, top, title=None, drawflag=True) :
         ''' 绘制colorbar的标题 '''
@@ -956,7 +980,7 @@ class colorbar(object) :
 
             tval = self.vmax - self.vmin
             # 像素长度的百分比
-            pixel_percent = (interval*1.0) / tval
+            # pixel_percent = (interval*1.0) / tval
             pixel_percent = 1.0 / len(cb)
             # 像素长度
             pixel_length = int(color_w * pixel_percent)
@@ -970,7 +994,7 @@ class colorbar(object) :
                 # 值的间隔
                 interval = cb[i][0] - cb[i-1][0]
                 # 像素长度的百分比
-                pixel_percent = (interval*1.0) / tval
+                # pixel_percent = (interval*1.0) / tval
                 pixel_percent = 1.0 / len(cb)
                 # 像素长度
                 pixel_length = int(color_w * pixel_percent)
@@ -1114,7 +1138,7 @@ class colorbar(object) :
 
         return ImageFont.truetype(font=FontTTF, size=fontsize)
 
-    def set_ticks_h(self, draw, posx, posy, val, color_w, color_h, label=None):
+    def draw_ticks_h(self, draw, posx, posy, val, color_w, color_h, label=None):
         if label is None :
             text = self._fmt % (val, )
         else:
@@ -1134,19 +1158,43 @@ class colorbar(object) :
         else:
             l = posx + color_w
 
-        posx = int(l - fontwidth/2)
-        posy = int(posy + color_h/8)
-        if posx < 0:
-            posx = 0
-        if l + fontwidth/2 >= self.cbwidth :
-            posx = self.cbwidth - fontwidth
+        if '&' in text :
+            l = posx + color_w*0.5
+            text = text.replace('&', '')
 
-        if 'fontcolor' in self._colorkwargs :
-            draw.text((posx, posy), text, fill=tuple(self._colorkwargs['fontcolor']), font=self._colorbarfont)
-        else:
-            draw.text((posx, posy), text, fill=(0,0,0), font=self._colorbarfont)
+        titles = text.split('\\n')
+        count = 0
+        for key in titles :
+            key = key.replace('\n', '')
+            fontwidthtemp, fontheighttemp = self._titlefont.getsize(key)
+            posx = int(l-fontwidthtemp/2)
+            posy = int(posy+count*fontheighttemp)
 
-    def set_ticks_v(self, draw, posx, posy, val, color_w, color_h, label=None):
+            if posy < 0:
+                posy = 0
+
+            self.cbwidth = posx
+
+            if 'fontcolor' in self._colorkwargs :
+                draw.text((posx, posy), key, fill=tuple(self._colorkwargs['fontcolor']), font=self._colorbarfont)
+            else:
+                draw.text((posx, posy), key, fill=(0, 0, 0), font=self._colorbarfont)
+
+            count += 1
+
+        # posx = int(l - fontwidth/2)
+        # posy = int(posy + color_h/8)
+        # if posx < 0:
+        #     posx = 0
+        # if l + fontwidth/2 >= self.cbwidth :
+        #     posx = self.cbwidth - fontwidth
+        #
+        # if 'fontcolor' in self._colorkwargs :
+        #     draw.text((posx, posy), text, fill=tuple(self._colorkwargs['fontcolor']), font=self._colorbarfont)
+        # else:
+        #     draw.text((posx, posy), text, fill=(0,0,0), font=self._colorbarfont)
+
+    def draw_ticks_v(self, draw, posx, posy, val, color_w, color_h, label=None):
         ''' 设置垂直colorbar的ticklabel'''
         if label is None :
             text = self._fmt % (val, )
@@ -1167,6 +1215,10 @@ class colorbar(object) :
         else:
             t = posy + color_h
 
+        if '&' in text :
+            t = posy + color_h*0.5
+            text = text.replace('&', '')
+
         posx = int(posx + color_w / 8)
         poxy = int(t - fontheight * 1/2)
 
@@ -1181,11 +1233,5 @@ class colorbar(object) :
         else:
             draw.text((posx, poxy), text, fill=(0,0,0), font=self._colorbarfont)
 
-#
-# if __name__ == '__main__':
-#
-#     filename = r'E:\XZDYYG\code\parm\cbfile\colorbar_NVI.txt'
-#
-#     cblist = getColorList(filename)
-#     print(cblist)
+
 

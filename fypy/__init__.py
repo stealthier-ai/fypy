@@ -17,7 +17,7 @@ __version__ = get_versions()['version']
 del get_versions
 
 
-from fypy.fy3 import fy3L1Pro, FY3Orbit, FY3Block10
+from fypy.fy3 import fy3scene
 from fypy.fy4 import fy4scene
 from fypy.draw import colorbar, drawThematic
 from fypy.h8 import hsd2hdf, drawH8TrueColor

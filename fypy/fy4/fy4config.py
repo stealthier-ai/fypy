@@ -87,3 +87,51 @@ FY4ProdInfo = {
         }
     }
 }
+
+AreaInfo = {
+    'fy4': {
+        'agri' : {
+            '0.005' : {
+                'description' : 'FY-4 full disk area definition at 500m resolution',
+                'shape': [21984, 21984],
+            },
+            '0.01' : {
+                'description' : 'FY-4 full disk area definition at 1km resolution',
+                'shape': [10992, 10992],
+            },
+            '0.02' : {
+                'description' : 'FY-4 full disk area definition at 2km resolution',
+                'shape': [5496, 5496],
+            },
+            '0.04' : {
+                'description' : 'FY-4 full disk area definition at 4km resolution',
+                'shape': [2748, 2748],
+            }
+        }
+    },
+    'himawari': {
+        'ahi' : {
+            '0.005' : {
+                'description' : 'Himawari-8/9 full disk area definition at 500m resolution',
+                'shape': [22000, 22000],
+                'extent':
+                    [-5499999.9684, -5499999.9684, 5499999.9684, 5499999.9684],        # minX, minY, maxX, maxY
+            },
+            '0.01' : {
+                'description' : 'Himawari-8/9 full disk area definition at 1km resolution',
+                'shape': [11000, 11000],
+                'extent':
+                    [-5500000.0355, -5500000.0355, 5500000.0355, 5500000.0355],        # minX, minY, maxX, maxY
+            },
+            '0.02' : {
+                'description' : 'Himawari-8/9 full disk area definition at 1km resolution',
+                'shape': [5500, 5500],
+                'extent':
+                    [-5499999.9012, -5499999.9012, 5499999.9012, 5499999.9012],        # minX, minY, maxX, maxY
+            }
+        }
+    }
+}
+
+
+

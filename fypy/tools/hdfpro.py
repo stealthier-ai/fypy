@@ -70,8 +70,9 @@ def readhdf_fileinfo(filename) :
         fp.close()
         return dictfileinfo
 
-def writehdf(filename, sdsname, data, overwrite=True, dictsdsinfo=None, dictfileinfo=None,
-             compression=9, info = False):
+def writehdf(filename, sdsname, data, overwrite=True,
+             dictsdsinfo=None, dictfileinfo=None,
+             compression=9, info=False):
     '''
     创建hdf5文件
     :param filename:

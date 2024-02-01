@@ -4,29 +4,35 @@ h8
 
 1、对H8 HSD格式数据进行解析、拼接、裁剪
 
-ahi8_l1_pro
+ahiscene
 -----------------------------------------
 
-.. automodule:: fypy.h8.ahi8_l1_pro
+.. automodule:: fypy.ahi.ahiscene
     :members:
     :undoc-members:
     :show-inheritance:
 
-ahi8searchtable
+ahisearchtabel
 -----------------------------------------
 
-.. automodule:: fypy.h8.ahi8searchtable
+.. automodule:: fypy.ahi.ahisearchtabel
     :members:
     :undoc-members:
     :show-inheritance:
 
-drawH8Image
+ahi_read_hsd
 -----------------------------------------
 
-.. automodule:: fypy.h8.drawH8Image
+.. automodule:: fypy.ahi.ahi_read_hsd
     :members:
     :undoc-members:
     :show-inheritance:
 
+ahiconfig
+-----------------------------------------
 
+.. automodule:: fypy.ahi.ahiconfig
+    :members:
+    :undoc-members:
+    :show-inheritance:
 

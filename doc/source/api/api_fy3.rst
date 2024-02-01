@@ -4,6 +4,24 @@ fy3
 
 1、对FY3 5分钟块、轨道、10度块数据产品进行投影、拼接、裁剪
 
+fy3scene
+-----------------------------------------
+
+.. automodule:: fypy.fy3.fy3scene
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+fy3core
+-----------------------------------------
+
+.. automodule:: fypy.fy3.fy3core
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
 fy3config
 -----------------------------------------
 
@@ -12,29 +30,4 @@ fy3config
     :undoc-members:
     :show-inheritance:
 
-
-fy3Orbit
------------------------------------------
-
-.. automodule:: fypy.fy3.fy3Orbit
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-fy3L1Pro
------------------------------------------
-
-.. automodule:: fypy.fy3.fy3L1Pro
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-fy3Block10
------------------------------------------
-
-.. automodule:: fypy.fy3.fy3Block10
-    :members:
-    :undoc-members:
-    :show-inheritance:
 

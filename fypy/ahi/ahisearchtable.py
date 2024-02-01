@@ -2,7 +2,7 @@
 '''
 @Project     : fypy
 
-@File        : fy4core.py
+@File        : ahisearchtable.py
 
 @Modify Time :  2022/11/10 14:45
 
@@ -19,31 +19,13 @@ import sys
 import numpy as np
 import datetime
 
-
-TWOPI = 6.28318530717958648
-DPAI = 6.28318530717958648
-
+# TWOPI = 6.28318530717958648
+# DPAI = 6.28318530717958648
+#
 deg2rad = np.pi / 180.0
 rad2deg = 180.0 / np.pi
 
-
-
-# 北边界纬度/º	80.56672132
-# 南边界纬度/º	-80.56672132
-# 东边界经度/º	-174.71662309
-# 西边界经度/º	24.11662309
-
-
-# 分辨率(km)   行数    列数
-#   16        687    687
-#   8        1374   1374
-#   4        2748   2748
-#   2        5496   5496
-#   1       10992  10992
-# 0.5       21984  21984
-# 0.25      43968  43968
-
-class fy4searchtable() :
+class ahisearchtable :
 
     def __init__(self, subpoint, resolution):
 
@@ -59,36 +41,29 @@ class fy4searchtable() :
             self.cfac = 163730199
             self.loff = 21983.5
             self.lfac = 163730199
-            self.rowmax = 43968
-            self.colmax = 43968
+            self.rowmax = 44000
+            self.colmax = 44000
         elif resolution == 0.005 :
             self.coff = 10991.5
             self.cfac = 81865099
             self.loff = 10991.5
             self.lfac = 81865099
-            self.rowmax = 21984
-            self.colmax = 21984
+            self.rowmax = 22000
+            self.colmax = 22000
         elif resolution == 0.01 :
             self.coff = 5495.5
             self.cfac = 40932549
             self.loff = 5495.5
             self.lfac = 40932549
-            self.rowmax = 10992
-            self.colmax = 10992
+            self.rowmax = 11000
+            self.colmax = 11000
         elif resolution == 0.02 :
             self.coff = 2747.5
             self.cfac = 20466274
             self.loff = 2747.5
             self.lfac = 20466274
-            self.rowmax = 5496
-            self.colmax = 5496
-        elif resolution == 0.04 :
-            self.coff = 1373.5      # 1375.5
-            self.cfac = 10233137    # 10233137
-            self.loff = 1373.5      # 1375.5
-            self.lfac = 10233137    # 10233137
-            self.rowmax = 2748
-            self.colmax = 2748
+            self.rowmax = 5500
+            self.colmax = 5500
         else:
             raise Exception("resolution error! please input [0.0025, 0.005, 0.01, 0.02, 0.04]")
 
@@ -176,7 +151,6 @@ class fy4searchtable() :
         lat1 = np.array(lat.copy())
         lon1 = np.array(lon.copy())
 
-        # lon1[lon1 > 180] -= 360.0
         fillflag = (lat1<-90) | (lat1 > 90) | \
                    (lon1<-180) | (lon1 > 180)
 
@@ -250,7 +224,7 @@ class fy4searchtable() :
         dSin_Latitude = np.sin(dLatitudeInRadians)
         dCos_HourAngle = np.cos(dHourAngle)
         Zenith = (np.arccos(dCos_Latitude * dCos_HourAngle * np.cos(dDeclination)
-                                  + np.sin(dDeclination) * dSin_Latitude))
+                            + np.sin(dDeclination) * dSin_Latitude))
         dY = -np.sin(dHourAngle)
         dX = np.tan(dDeclination) * dCos_Latitude - dSin_Latitude * dCos_HourAngle
         Azimuth = np.arctan2(dY, dX)
@@ -260,7 +234,7 @@ class fy4searchtable() :
         dParallax = (dEarthMeanRadius / dAstronomicalUnit) * np.sin(Zenith)
         Zenith = np.rad2deg(Zenith + dParallax)
 
-        flag = (lat <-90) | (lat > 90) |\
+        flag = (lat <-90) | (lat > 90) | \
                (lon < -180) | (lon > 180)
         Azimuth[flag] = fillvalue
         Zenith[flag] = fillvalue
@@ -319,41 +293,6 @@ class fy4searchtable() :
         RelativeAzi[fillflag] = fillvalue
 
         return RelativeAzi
-
-
-def GetNameInfo(filename):
-    ''' 根据输入数据的文件名获取信息 '''
-    # FY4A-_AGRI--_N_DISK_1047E_L1-_FDI-_MULT_NOM_20211211060000_20211211061459_4000M_V0001.HDF
-    # FY4A-_AGRI--_N_DISK_1047E_L1-_GEO-_MULT_NOM_20231231040000_20231231041459_4000M_V0001.HDF
-    # FY4A-_AGRI--_N_DISK_1047E_L2-_CLM-_MULT_NOM_20240106030000_20240106031459_4000M_V0001.NC
-    # FY4A-_AGRI--_N_REGC_1047E_L2-_CLM-_MULT_NOM_20231230011500_20231230011917_4000M_V0001.NC
-
-    nameinfo = {}
-    basename = os.path.basename(filename)
-    if len(basename) != 88 and len(basename) != 89 :
-        print('输入文件名为非标准文件名，将不作信息提取【%s】' %(basename))
-        return nameinfo
-
-    basename = basename.replace('-', '')
-    namelist = basename.split('_')
-    nameinfo['SatID']  = namelist[0]
-    nameinfo['InstID'] = namelist[1]
-    nameinfo['ObsType'] = namelist[2]
-    nameinfo['RegionID'] = namelist[3]
-    nameinfo['SubLon'] = namelist[4]
-    nameinfo['LevelID'] = namelist[5]
-    nameinfo['ProdID'] = namelist[6]
-    nameinfo['Proj'] = namelist[8]
-    nameinfo['StartTime'] = datetime.datetime.strptime(namelist[9], '%Y%m%d%H%M%S')
-    nameinfo['EndTime'] = datetime.datetime.strptime(namelist[10], '%Y%m%d%H%M%S')
-    if 'KM' in namelist[11] :
-        nameinfo['Resolution'] = float(namelist[11].replace('KM',''))/100.0
-    elif 'M' in namelist[11] :
-        nameinfo['Resolution'] = float(namelist[11].replace('M',''))/100.0/1000.0
-    nameinfo['Version'] = namelist[12]
-
-    return nameinfo
-
 
 
 

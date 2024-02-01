@@ -20,7 +20,7 @@ from osgeo import gdal, osr
 
 from fypy.fy4.fy4core import fy4searchtable
 
-from fypy.tools.tifpro import writetiff
+from fypy.tools.tifpro import writetiff, GetGDALType
 from fypy.tools.ncpro import writenc, writenc_fileinfo
 from fypy.tools.hdfpro import writehdf
 
@@ -36,6 +36,7 @@ class fy4scene(fy4searchtable) :
                  sublon=None, resolution=None, regionID=None, levelID=None,
                  startTime=None, endTime=None, proj=None):
         ''' 通过文件名获取文件相关信息 '''
+        self.img = None
 
         self.Parse(filename, satID, instID, prodID, sublon, regionID,
                    levelID, startTime, endTime, resolution, proj)
@@ -45,9 +46,8 @@ class fy4scene(fy4searchtable) :
 
         super().__init__(self.SubLon, self.Resolution)
 
-    def Clip(self, data, shpname=None, extent=None,
-             srcNodata=65535, dstNodata=None, dstSRS='EPSG:4326',
-             resampleAlg='near'):
+    def Clip(self, data, shpname=None, extent=None, srcNodata=65535, dstNodata=None,
+             dstSRS='EPSG:4326', resampleAlg='near'):
         '''
         将标称投影转换成等经纬投影（NOM->GLL）
 
@@ -70,7 +70,7 @@ class fy4scene(fy4searchtable) :
         '''
 
         im_data = np.array(data, dtype=np.float32)
-        dtype = self._gettype(im_data.dtype)
+        dtype = GetGDALType(im_data.dtype)
 
         # 只支持2、3维数据处理
         if len(im_data.shape) == 2:
@@ -182,15 +182,29 @@ class fy4scene(fy4searchtable) :
         vis065 = self.Calibration(filename, bandID=2)
         vis085 = self.Calibration(filename, bandID=3)
 
+        rr = vis085.copy()
+        rr[vis085<vis065] = vis065[vis085<vis065]
 
         vis055 = self.set_green(vis045, vis065)
 
-        rr = np.array(vis065*255, dtype=np.uint8)
+        rr = np.array(rr*255, dtype=np.uint8)
         gg = np.array(vis055*255, dtype=np.uint8)
         bb = np.array(vis045*255, dtype=np.uint8)
 
-        vm = Image.merge('RGB', [self.Arr2Img(i) for i in (rr, gg, bb)])
-        vm.save(r'D:\DATA\FY4A\test.png', quality=90)
+        self.img = Image.merge('RGB', [self.Arr2Img(i) for i in (rr, gg, bb)])
+
+
+    def show(self, ):
+        if self.img is None :
+            raise Exception('请先加载【load】一个对象后再【show】')
+
+        self.img.show()
+
+    def SaveThematic(self, outname):
+        if self.img is None :
+            raise Exception('请先加载【load】一个对象后再【SaveThematic】')
+
+        self.img.save(outname)
 
     def Arr2Img(self, arr):
         if arr.dtype == np.uint8:
@@ -202,11 +216,7 @@ class fy4scene(fy4searchtable) :
     def T0_255(self, raw):
         return (raw >> RATE).astype(np.uint8)
 
-    def show(self, filename, ProdID=None):
-        pass
 
-    def SaveThematic(self, outname, srcfile, ProdID=None):
-        pass
 
     def set_green(self, vis047, vis065, fractions=(1.0, 0.13, 0.87)):
         ''' 用红光和蓝光通道模拟绿光通道 '''
@@ -351,25 +361,3 @@ class fy4scene(fy4searchtable) :
             self.SubLon = SubLon
         elif 'SubLon' in nameinfo :
             self.SubLon = float(nameinfo['SubLon'].replace('E', ''))/10.0
-
-    def _gettype(self, datatype):
-        ''' 根据numpy的数据类型，匹配GDAL中的数据类型 '''
-
-        if datatype == np.byte or datatype == np.uint8:
-            return gdal.GDT_Byte
-        elif datatype == np.uint16 :
-            return gdal.GDT_UInt16
-        elif datatype == np.int16 :
-            return gdal.GDT_Int16
-        elif datatype == np.uint32 :
-            return gdal.GDT_UInt32
-        elif datatype == np.int32 :
-            return gdal.GDT_Int32
-        elif datatype == np.float32 or datatype.str in ['>f4', '<f4']:
-            return gdal.GDT_Float32
-        elif datatype == np.float64 or datatype.str in ['>f8', '<f8']:
-            return gdal.GDT_Float64
-        else:
-            return gdal.GDT_Unknown
-
-

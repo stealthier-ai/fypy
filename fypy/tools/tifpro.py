@@ -79,7 +79,7 @@ def writetiff(outname, data, trans=None, prj=None, fillvalue=None, scale=None, o
     if fillvalue :
         im_data[np.isnan(im_data)] = fillvalue
 
-    datatype = gettype(im_data.dtype)
+    datatype = GetGDALType(im_data.dtype)
 
     if len(im_data.shape) == 3:
         im_bands, im_height, im_width = im_data.shape
@@ -134,7 +134,7 @@ def getDateSet(data, trans=None, prj=None, fillvalue=None, epsg=4326, scale=None
     if fillvalue :
         im_data[np.isnan(im_data)] = fillvalue
 
-    datatype = gettype(im_data.dtype)
+    datatype = GetGDALType(im_data.dtype)
 
     if len(im_data.shape) == 3:
         im_bands, im_height, im_width = im_data.shape
@@ -185,30 +185,28 @@ def get_fillvalue(filename):
     return fillvalue
 
 
-def gettype(datatype):
+def GetGDALType(dtype):
     '''
     根据numpy的数据类型，匹配GDAL中的数据类型
-    :param datatype:
+    :param dtype:
     :return: GDAL数据类型
     '''
 
-    if datatype == np.byte or datatype == np.uint8:
+    if dtype == np.byte or dtype == np.uint8:
         return gdal.GDT_Byte
-    elif datatype == np.uint16 :
+    elif dtype == np.uint16 :
         return gdal.GDT_UInt16
-    elif datatype == np.int16 :
+    elif dtype == np.int16 :
         return gdal.GDT_Int16
-    elif datatype == np.uint32 :
+    elif dtype == np.uint32 :
         return gdal.GDT_UInt32
-    elif datatype == np.int32 :
+    elif dtype == np.int32 :
         return gdal.GDT_Int32
-    elif datatype == np.float32 :
+    elif dtype == np.float32 or dtype.str in ['>f4', '<f4']:
         return gdal.GDT_Float32
-    elif datatype == np.float64 :
+    elif dtype == np.float64 or dtype.str in ['>f8', '<f8']:
         return gdal.GDT_Float64
     else:
         return gdal.GDT_Unknown
-
-
 
 

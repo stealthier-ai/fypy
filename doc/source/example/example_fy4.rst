@@ -43,7 +43,7 @@ FY-4数据经纬度、行列号互转
     x, y = np.meshgrid(np.arange(scene.colmax), np.arange(scene.rowmax))
 
     # xy转lon,lat
-    lon, lat = scene.xytolatlon(x, y)
+    lon, lat = scene.xy2latlon(x, y)
 
     # lat, lon转xy
     x, y = scene.latlon2xy(lat, lon)
@@ -72,3 +72,17 @@ FY-4各类角度计算
     # 耀斑角
     sungl = scene.CalSunGL(satz, sunz, rela)
 
+FY-4 真彩图绘制
+-----------------------------------------
+
+.. code-block:: python
+
+    from fypy.fy4 import fy4scene
+
+    filename = r'FY4A-_AGRI--_N_DISK_1047E_L1-_FDI-_MULT_NOM_20240129040000_20240129041459_1000M_V0001.HDF'
+
+    mc_pro = fy4scene(filename=filename)
+
+    mc_pro.load(filename)
+    mc_pro.show()
+    mc_pro.SaveThematic('test.png')

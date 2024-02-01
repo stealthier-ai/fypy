@@ -31,7 +31,7 @@ from PIL import Image
 from fypy.tools.hdfpro import writehdf, writehdf_fileinfo,\
                               readhdf, readhdf_fileinfo
 from fypy.tools.ncpro import writenc, writenc_fileinfo
-from fypy.tools.tifpro import writetiff, gettype
+from fypy.tools.tifpro import writetiff, GetGDALType
 
 from fypy.fy3.fy3core import GetNameInfo, GetSourceInfo, CreateVrt,\
                              calref, calemiss, \
@@ -247,7 +247,7 @@ class fy3scene :
         newrows = int(np.ceil((lat_max - lat_min) / np.fabs(yRes)))
 
         # 创建输出对象
-        datatype = gettype(data_src.dtype)
+        datatype = GetGDALType(data_src.dtype)
         driver = gdal.GetDriverByName("MEM")
         outds = driver.Create('', newcols, newrows, bands, datatype)
 

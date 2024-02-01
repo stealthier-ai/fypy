@@ -20,7 +20,7 @@ del get_versions
 from fypy.fy3 import fy3scene
 from fypy.fy4 import fy4scene
 from fypy.draw import colorbar, drawThematic
-from fypy.h8 import hsd2hdf, drawH8TrueColor
+# from fypy.ahi import hsd2hdf, drawH8TrueColor
 from fypy.modis import modis2tif
 
 from fypy.RSDP import AtmCorr_FY3D_MERSI, AtmCorr_GF, \

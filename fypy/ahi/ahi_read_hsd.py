@@ -2,7 +2,7 @@
 '''
 @Project     : fypy
 
-@File        : ahi8_read_hsd.py
+@File        : ahi_read_hsd.py
 
 @Modify Time :  2022/11/10 14:45
 
@@ -206,12 +206,12 @@ _SPARE_TYPE = np.dtype([
 
 
 
-class ahi8_read_hsd(object):
+class ahi_read_hsd :
 
-    def GetData(self, hsdname, segnum, segtotal):
+    def readhsd(self, hsdname, segnum):
         self.segment_number = segnum
-        self.segtotal = segtotal
-        self.data = None
+        # self.segtotal = segtotal
+        # self.data = None
         self.is_zipped = False
 
         self._unzipped = self.unzip_file(hsdname)
@@ -240,7 +240,7 @@ class ahi8_read_hsd(object):
         except BaseException as e :
             print(e)
             # os.remove(self.filename)
-            return False
+            return None
 
         self.platform_name = np2str(self.basic_info['satellite'])
         self.sensor = 'ahi'
@@ -262,9 +262,9 @@ class ahi8_read_hsd(object):
             self._header = self._read_header(fp_)
             res = self._read_data(fp_, self._header)
             fp_.close()
-        self.data = self.read_band(res)
+        data = self.read_band(res)
 
-        return True
+        return data.values
 
     def read_band(self, res):
 
@@ -509,64 +509,137 @@ class ahi8_read_hsd(object):
                                        dtype='<u2', shape=(nlines, ncols), mode='r'),
                              chunks=4096)
 
-    def unzip_file(self, filename):
+    def unzip_file(self, filename, tmppath=None):
+        from subprocess import Popen, PIPE
+        from io import BytesIO
+        from contextlib import closing
+        import shutil
+        import bz2
+
+        try:
+            from shutil import which
+        except ImportError:
+            # python 2 - won't be used, but needed for mocking in tests
+            which = None
+
         """Unzip the file if file is bzipped = ending with 'bz2'."""
-        # pathin = os.path.dirname(filename)
-        # name = os.path.basename(filename)
-        if filename.endswith('bz2'):
-            # fdn, tmpfilepath = tempfile.mkstemp()
-            tmpfilepath = filename.replace('.bz2','')
-            if os.path.isfile(tmpfilepath) :
-                return tmpfilepath
-            print("Using temp file for BZ2 decompression: %s", tmpfilepath)
-            # try pbzip2
-            pbzip = which('pbzip2')
-            # Run external pbzip2
-            if pbzip is not None:
-                n_thr = os.environ.get('OMP_NUM_THREADS')
-                if n_thr:
-                    runner = [pbzip,
-                              '-dc',
-                              '-p'+str(n_thr),
-                              filename]
+        try:
+            if filename.endswith('bz2'):
+                # fdn, tmpfilepath = tempfile.mkstemp()
+                if tmppath is None :
+                    tmpfilepath = filename.replace('.bz2','')
                 else:
-                    runner = [pbzip,
-                              '-dc',
-                              filename]
-                p = Popen(runner, stdout=PIPE, stderr=PIPE)
-                stdout = BytesIO(p.communicate()[0])
-                status = p.returncode
-                if status != 0:
-                    raise IOError("pbzip2 error '%s', failed, status=%d"
-                                  % (filename, status))
+                    tmpfilepath = os.path.join(tmppath, os.path.basename(filename).replace('.bz2',''))
+
+                if os.path.isfile(tmpfilepath) :
+                    return tmpfilepath
+                # print("解压bz2文件【%s】" %(tmpfilepath))
+                # try pbzip2
+                pbzip = which('pbzip2')
+                # Run external pbzip2
+                if pbzip is not None:
+                    n_thr = os.environ.get('OMP_NUM_THREADS')
+                    if n_thr:
+                        runner = [pbzip,
+                                  '-dc',
+                                  '-p'+str(n_thr),
+                                  filename]
+                    else:
+                        runner = [pbzip,
+                                  '-dc',
+                                  filename]
+                    p = Popen(runner, stdout=PIPE, stderr=PIPE)
+                    stdout = BytesIO(p.communicate()[0])
+                    status = p.returncode
+                    if status != 0:
+                        raise IOError("pbzip2 error '%s', failed, status=%d"
+                                      % (filename, status))
+                    with closing(open(tmpfilepath, 'wb')) as ofpt:
+                        try:
+                            stdout.seek(0)
+                            shutil.copyfileobj(stdout, ofpt)
+                        except IOError:
+                            import traceback
+                            traceback.print_exc()
+                            print("Failed to read bzipped file %s",
+                                  str(filename))
+                            os.remove(tmpfilepath)
+
+                    return tmpfilepath
+
+                # Otherwise, fall back to the original method
+                bz2file = bz2.BZ2File(filename)
                 with closing(open(tmpfilepath, 'wb')) as ofpt:
                     try:
-                        stdout.seek(0)
-                        shutil.copyfileobj(stdout, ofpt)
+                        ofpt.write(bz2file.read())
                     except IOError:
                         import traceback
                         traceback.print_exc()
-                        print("Failed to read bzipped file %s",
-                              str(filename))
-                        os.remove(tmpfilepath)
-                        raise
+                        print("Failed to read bzipped file %s", str(filename))
+                        # os.remove(tmpfilepath)
+                        return None
                 return tmpfilepath
+        except BaseException :
+            return None
 
-            # Otherwise, fall back to the original method
-            bz2file = bz2.BZ2File(filename)
-            with closing(open(tmpfilepath, 'wb')) as ofpt:
-                try:
-                    ofpt.write(bz2file.read())
-                    ofpt.close()
-                except IOError:
-                    import traceback
-                    traceback.print_exc()
-                    print("Failed to read bzipped file %s", str(filename))
-                    # os.remove(tmpfilepath)
-                    return None
-            return tmpfilepath
-
-        return None
+    # def unzip_file(self, filename):
+    #     """Unzip the file if file is bzipped = ending with 'bz2'."""
+    #     # pathin = os.path.dirname(filename)
+    #     # name = os.path.basename(filename)
+    #     if filename.endswith('bz2'):
+    #         # fdn, tmpfilepath = tempfile.mkstemp()
+    #         tmpfilepath = filename.replace('.bz2','')
+    #         if os.path.isfile(tmpfilepath) :
+    #             return tmpfilepath
+    #         print("Using temp file for BZ2 decompression: %s", tmpfilepath)
+    #         # try pbzip2
+    #         pbzip = which('pbzip2')
+    #         # Run external pbzip2
+    #         if pbzip is not None:
+    #             n_thr = os.environ.get('OMP_NUM_THREADS')
+    #             if n_thr:
+    #                 runner = [pbzip,
+    #                           '-dc',
+    #                           '-p'+str(n_thr),
+    #                           filename]
+    #             else:
+    #                 runner = [pbzip,
+    #                           '-dc',
+    #                           filename]
+    #             p = Popen(runner, stdout=PIPE, stderr=PIPE)
+    #             stdout = BytesIO(p.communicate()[0])
+    #             status = p.returncode
+    #             if status != 0:
+    #                 raise IOError("pbzip2 error '%s', failed, status=%d"
+    #                               % (filename, status))
+    #             with closing(open(tmpfilepath, 'wb')) as ofpt:
+    #                 try:
+    #                     stdout.seek(0)
+    #                     shutil.copyfileobj(stdout, ofpt)
+    #                 except IOError:
+    #                     import traceback
+    #                     traceback.print_exc()
+    #                     print("Failed to read bzipped file %s",
+    #                           str(filename))
+    #                     os.remove(tmpfilepath)
+    #                     raise
+    #             return tmpfilepath
+    #
+    #         # Otherwise, fall back to the original method
+    #         bz2file = bz2.BZ2File(filename)
+    #         with closing(open(tmpfilepath, 'wb')) as ofpt:
+    #             try:
+    #                 ofpt.write(bz2file.read())
+    #                 ofpt.close()
+    #             except IOError:
+    #                 import traceback
+    #                 traceback.print_exc()
+    #                 print("Failed to read bzipped file %s", str(filename))
+    #                 # os.remove(tmpfilepath)
+    #                 return None
+    #         return tmpfilepath
+    #
+    #     return None
 
     def _check_fpos(self, fp_, fpos, offset, block):
         """Check file position matches blocksize."""
@@ -624,53 +697,6 @@ class ahi8_read_hsd(object):
 
         self.area = area
         return area
-
-    def latlon2ij(self, lat, lon):
-
-        ea = float(self.proj_info['earth_equatorial_radius'])   # 6378.137          # 地球长半轴
-        eb = float(self.proj_info['earth_polar_radius'])        # 6356.7523         # 地球短半轴
-        H = float(self.proj_info['distance_from_earth_center'])    # 42164.0    # 地心到卫星质心的距离
-        subpoint = float(self.proj_info['sub_lon'])
-        coff = np.float32(self.proj_info['COFF'])
-        cfac = np.uint32(self.proj_info['CFAC'])
-        loff = np.float32(self.proj_info['LOFF'])
-        lfac = np.uint32(self.proj_info['LFAC'])
-        rowmax = int(self.data_info['number_of_columns'])
-        colmax = int(self.data_info['number_of_columns'])
-
-        lat1 = lat.copy()
-        lon1 = lon.copy()
-        deg2rad = np.pi / 180.0
-        rad2deg = 180.0 / np.pi
-
-        lon1[lon1 > 180] -= 360.0
-
-        lon1 = lon1 * deg2rad
-        lat1 = lat1 * deg2rad
-
-        phi_e = np.arctan(eb ** 2 * np.tan(lat1) / ea ** 2)
-        re = eb / np.sqrt(1-(ea**2 - eb**2) * np.cos(phi_e)**2/ea**2)
-        r1 = H - re * np.cos(phi_e) * np.cos(lon1 - subpoint* deg2rad)
-        r2 = -re * np.cos(phi_e) * np.sin(lon1 - subpoint* deg2rad)
-        r3 = re * np.sin(phi_e)
-        rn = np.sqrt(r1**2 + r2**2 + r3**2)
-        x = np.arctan2(-r2, r1)*180/np.pi
-        # x = np.arctan(-r2/r1)*180/np.pi
-        y = np.arcsin(-r3/rn)*180/np.pi
-        col = coff + x * 2**(-16) * cfac
-        line = loff + y * 2**(-16) * lfac
-
-        # 对外太空进行判断
-        tmp = r1 * (r1 - H) + r2 **2 + r3**2
-        flag = tmp > 0
-
-        line = np.array(line+0.5, dtype=np.int32)
-        col = np.array(col+0.5, dtype=np.int32)
-
-        line[(line<0) | (line >= rowmax)] = -1
-        col[(col<0) | (col>=colmax)]  = -1
-
-        return line, col
 
     def __del__(self):
 

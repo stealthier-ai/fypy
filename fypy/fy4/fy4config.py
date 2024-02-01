@@ -109,7 +109,7 @@ AreaInfo = {
             }
         }
     },
-    'himawari': {
+    'ahi': {
         'ahi' : {
             '0.005' : {
                 'description' : 'Himawari-8/9 full disk area definition at 500m resolution',

@@ -7,7 +7,7 @@ API介绍
 
    api/api_fy3
    api/api_fy4
-   api/api_h8
+   api/api_ahi
    api/api_modis
    api/api_rsdp
    api/api_draw

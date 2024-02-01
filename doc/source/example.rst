@@ -7,7 +7,7 @@
 
    example/example_fy3
    example/example_fy4
-   example/example_h8
+   example/example_ahi
    example/example_modis
    example/example_rsdp
    example/example_draw

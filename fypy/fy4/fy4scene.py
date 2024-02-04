@@ -19,6 +19,7 @@ import numpy as np
 from osgeo import gdal, osr
 
 from fypy.tools.tifpro import GetGDALType
+from fypy.tools.ncpro import readnc, readnc_sdsinfo
 from fypy.tools.BaseAlgorithms import BaseAlgorithms
 from fypy.fy4.fy4core import GetNameInfo, fy4searchtable
 
@@ -131,6 +132,27 @@ class fy4scene(fy4searchtable, BaseAlgorithms) :
         return warpDs
 
     def load(self, filename, ProdID=None):
+
+        data, dictsdsinfo  = readnc(filename, ProdID, dictsdsinfo={})
+        if data is None :
+            print('读取文件失败【%s】【%s】' %(ProdID, filename))
+            return None
+
+        if 'FillValue' in dictsdsinfo :
+            fillvalue = dictsdsinfo['FillValue']
+        elif '_FillValue' in dictsdsinfo :
+            fillvalue = dictsdsinfo['_FillValue']
+        else:
+            fillvalue = None
+
+        extentinfo = readnc_sdsinfo(filename, 'geospatial_lat_lon_extent')
+
+        return self.Reprojection(data,
+                                 extentinfo['begin_line_number'],
+                                 extentinfo['begin_pixel_number'], srcNodata=fillvalue)
+
+
+    def show(self, filename, ProdID='true_color'):
         vis045 = self.Calibration(filename, bandID=1)
         vis065 = self.Calibration(filename, bandID=2)
         vis085 = self.Calibration(filename, bandID=3)
@@ -146,7 +168,6 @@ class fy4scene(fy4searchtable, BaseAlgorithms) :
 
         self.img = Image.merge('RGB', [self.Arr2Img(i) for i in (rr, gg, bb)])
 
-    def show(self, ):
         if self.img is None :
             raise Exception('请先加载【load】一个对象后再【show】')
 

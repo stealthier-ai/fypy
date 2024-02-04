@@ -32,6 +32,19 @@ FY-4数据辐射定标、裁剪
     NOMSatelliteZenith = scene.GetGEOData(filename, 'NOMSatelliteZenith')
     NOMSunGlintAngle = scene.GetGEOData(filename, 'NOMSunGlintAngle')
 
+FY-4 L2、L3级产品投影、裁剪
+-----------------------------------------
+
+.. code-block:: python
+
+
+    filename = r'FY4A-_AGRI--_N_REGC_1047E_L2-_LST-_MULT_NOM_20230801065336_20230801065753_4000M_V0001.NC'
+    from fypy.fy4 import fy4scene
+    scene = fy4scene(filename=filename)
+
+    ds = scene.load(filename, ProdID='LST')
+    # ds = scene.Clip(ds, extent=[70, 20, 135, 55])
+    scene.DS2Tiff(r'test.tif', srcDS=ds)
 
 FY-4数据经纬度、行列号互转
 -----------------------------------------

@@ -47,7 +47,7 @@ FY3 轨道数据产品投影
     lon = readhdf(geofile, '/Geolocation/Longitude')
 
     # 轨道数据投影
-    ds = mc_pro.Translate(data, lat, lon,
+    ds = mc_pro.Reprojection(data, lat, lon,
                    resolution=None, vmin=0, vmax=10000, resampleAlg='near')
 
     mc_pro.DS2Tiff(r'test.tif', ds)

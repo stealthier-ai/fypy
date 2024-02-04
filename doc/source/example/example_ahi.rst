@@ -33,7 +33,13 @@ H8/H9 AHI HSD文件解析和块拼接成FULL DISK
             continue
 
         scene = ahiscene(subpoint=140.7, resolution=0.01)
-        data, BlockIDs = scene.HSDBlock(filelist, tempdir)
+        ds = scene.HSDBlock(filelist, tempdir)
+
+        ds = scene.Clip(ds)
+        scene.DS2Tiff(r'test.tif', srcDS=ds)
+
+        scene.DS2Netcdf(r'test.nc', 'data', srcDS=ds)
+        scene.DS2Hdf(r'test.hdf', 'data', srcDS=ds)
 
 
 H8/H9 AHI 数据经纬度、行列号互转

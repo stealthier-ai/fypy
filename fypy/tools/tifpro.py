@@ -32,20 +32,20 @@ def readtiff(filename):
     if dataset == None:
         print(filename+"文件无法打开")
         return None, None, None
-    width = dataset.RasterXSize #栅格矩阵的列数
-    height = dataset.RasterYSize #栅格矩阵的行数
-    im_bands = dataset.RasterCount #波段数
+    width = dataset.RasterXSize
+    height = dataset.RasterYSize
+    bands = dataset.RasterCount
 
-    im_data = dataset.ReadAsArray(0, 0, width, height)#获取数据
-    im_geotrans = dataset.GetGeoTransform()#获取仿射矩阵信息
-    im_proj = dataset.GetProjection()#获取投影信息
+    data = dataset.ReadAsArray()
+    trans = dataset.GetGeoTransform()
+    prj = dataset.GetProjection()
 
     # 对填充值进行NAN填充
-    for iband in range(im_bands) :
+    for iband in range(bands) :
         fillvalue = dataset.GetRasterBand(iband+1).GetNoDataValue()
         if not fillvalue is None :
-            if im_data.dtype == np.float16 or im_data.dtype == np.float32 or im_data.dtype == np.float64 :
-                im_data[im_data==fillvalue] = np.nan
+            if data.dtype == np.float16 or data.dtype == np.float32 or data.dtype == np.float64 :
+                data[data==fillvalue] = np.nan
 
             # if im_data.dtype == np.int16 or im_data.dtype == np.int32 or im_data.dtype == np.int64 :
             #     im_data = np.array(im_data, dtype=np.float32)
@@ -55,14 +55,14 @@ def readtiff(filename):
         scale = dataset.GetRasterBand(iband+1).GetScale()
         offset = dataset.GetRasterBand(iband+1).GetOffset()
         if not scale is None :
-            im_data[iband] *= scale
+            data[iband] *= scale
 
         if not offset is None :
-            im_data[iband] += offset
+            data[iband] += offset
 
     del dataset
 
-    return im_data, im_geotrans, im_proj
+    return data, trans, prj
 
 def writetiff(outname, data, trans=None, prj=None, fillvalue=None, scale=None, offset=None):
     '''
@@ -142,7 +142,7 @@ def getDateSet(data, trans=None, prj=None, fillvalue=None, epsg=4326, scale=None
         im_bands, (im_height, im_width) = 1,im_data.shape
     else:
         im_bands, (im_height, im_width) = 1,im_data.shape
-        #创建文件
+    #创建文件
     driver = gdal.GetDriverByName("MEM")
     dataset = driver.Create('', im_width, im_height, im_bands, datatype)
     if dataset is  None:
@@ -209,4 +209,20 @@ def GetGDALType(dtype):
     else:
         return gdal.GDT_Unknown
 
-
+def GetNumpyType(dtype):
+    if dtype == gdal.GDT_Byte :
+        return np.byte
+    elif dtype == gdal.GDT_UInt16 :
+        return np.uint16
+    elif dtype == gdal.GDT_Int16 :
+        return np.int16
+    elif dtype == gdal.GDT_UInt32 :
+        return np.uint32
+    elif dtype == gdal.GDT_Int32 :
+        return np.int32
+    elif dtype == gdal.GDT_Float32 :
+        return np.float32
+    elif dtype == gdal.GDT_Float64 :
+        return np.float64
+    else:
+        return None

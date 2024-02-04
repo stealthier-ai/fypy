@@ -16,12 +16,11 @@ from .version import get_versions
 __version__ = get_versions()['version']
 del get_versions
 
-
+from fypy.ahi import ahiscene
 from fypy.fy3 import fy3scene
 from fypy.fy4 import fy4scene
 from fypy.draw import colorbar, drawThematic
-# from fypy.ahi import hsd2hdf, drawH8TrueColor
-from fypy.modis import modis2tif
+from fypy.modis import modisscene
 
 from fypy.RSDP import AtmCorr_FY3D_MERSI, AtmCorr_GF, \
     AtmCorr_Landsat, AtmCorr_Sentinel

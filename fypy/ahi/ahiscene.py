@@ -24,17 +24,17 @@ from tqdm import tqdm
 
 from osgeo import gdal, osr
 from fypy.tools.tifpro import writetiff, GetGDALType
-from fypy.tools.ncpro import writenc, writenc_fileinfo
-from fypy.tools.hdfpro import writehdf, writehdf_fileinfo
+from fypy.tools.BaseAlgorithms import BaseAlgorithms
 from fypy.ahi.ahisearchtable import ahisearchtable
 from fypy.ahi.ahi_read_hsd import ahi_read_hsd
 from fypy.ahi.ahiconfig import AreaInfo
 
 
-class ahiscene(ahi_read_hsd, ahisearchtable) :
+class ahiscene(ahi_read_hsd, ahisearchtable, BaseAlgorithms) :
 
     def __init__(self, subpoint, resolution):
         super().__init__(subpoint, resolution)
+        self.Tempfile = []
 
     def HSDBlock(self, srcHSDfiles, tmppath, fillvalue=65535) :
         ''' 对H8、H9的HSD文件进行解析、拼接成NOM '''
@@ -64,7 +64,7 @@ class ahiscene(ahi_read_hsd, ahisearchtable) :
                     self.is_zipped = True
                     filename = self._unzipped
 
-                    # self.tmpfile.append(filename)
+                    self.Tempfile.append(filename)
                 else:
                     filename = hsdname
 
@@ -91,9 +91,9 @@ class ahiscene(ahi_read_hsd, ahisearchtable) :
                 pbar.update(1)
         pbar.close()
 
-        return self.Translate(outdata, BlockIDs, line, srcNodata=fillvalue)
+        return self.Reprojection(outdata, BlockIDs, line, srcNodata=fillvalue)
 
-    def Translate(self, data, blockIDs, blockLine, srcNodata=65535):
+    def Reprojection(self, data, blockIDs, blockLine, srcNodata=65535):
 
         im_data = np.array(data)
         dtype = GetGDALType(im_data.dtype)
@@ -105,7 +105,7 @@ class ahiscene(ahi_read_hsd, ahisearchtable) :
             im_bands, im_height, im_width = im_data.shape
 
         Driver = gdal.GetDriverByName('MEM')
-        memDs = Driver.Create('', im_height, im_width, im_bands, dtype)
+        memDs = Driver.Create('', im_width, im_height, im_bands, dtype)
 
         # 写入数据
         if im_bands == 1:
@@ -129,7 +129,9 @@ class ahiscene(ahi_read_hsd, ahisearchtable) :
 
         return memDs
 
-    def SetTrans(self, BlockIDs, blockLine):
+    def SetTrans(self, BlockIDs, blockLine) :
+        ''' 设置仿射变换 '''
+
         if str(self.resolution) not in AreaInfo['ahi']['ahi'] :
             raise Exception('该空间分辨率【%s】不在处理范围内【0.005，0.01，0.02】' )
 
@@ -138,14 +140,15 @@ class ahiscene(ahi_read_hsd, ahisearchtable) :
         BlockIDMin = np.nanmin(BlockIDs)
         BlockIDMax = np.nanmax(BlockIDs)
 
-        maxY = dictinfo['extent'][3] - ((BlockIDMin-1)*blockLine) * 100 * 1000 / 2.0
+        maxY = dictinfo['extent'][3] - ((BlockIDMin-1)*blockLine) * self.resolution * 100 * 1000
         minX = dictinfo['extent'][0]
+
         trans = [minX, self.resolution*100*1000, 0,
                  maxY, 0, -self.resolution*100*1000]
 
         return trans
 
-    def Clip(self, data, shpname=None, extent=None, srcNodata=65535, dstNodata=None,
+    def Clip(self, srcDS, shpname=None, extent=None, srcNodata=65535, dstNodata=None,
              dstSRS='EPSG:4326', resampleAlg='near'):
         '''
         将标称投影转换成等经纬投影（NOM->GLL）
@@ -168,41 +171,8 @@ class ahiscene(ahi_read_hsd, ahisearchtable) :
 
         '''
 
-        im_data = np.array(data, dtype=np.float32)
-        dtype = GetGDALType(im_data.dtype)
-
-        # 只支持2、3维数据处理
-        if len(im_data.shape) == 2:
-            im_bands, (im_height, im_width) = 1,im_data.shape
-        elif len(im_data.shape) == 3:
-            im_bands, im_height, im_width = im_data.shape
-
-        Driver = gdal.GetDriverByName('MEM')
-        memDs = Driver.Create('', im_height, im_width, im_bands, dtype)
-
-        # 写入数据
-        if im_bands == 1:
-            memDs.GetRasterBand(1).WriteArray(im_data)
-            if srcNodata is not None:
-                memDs.GetRasterBand(1).SetNoDataValue(float(srcNodata))
-        else:
-            for i in range(im_bands):
-                memDs.GetRasterBand(i+1).WriteArray(im_data[i])
-                if srcNodata is not None:
-                    memDs.GetRasterBand(i+1).SetNoDataValue(float(srcNodata))
-
-        # 设置参考投影
-        srs = osr.SpatialReference()
-        srs.ImportFromProj4('+proj=geos +h=35785863 +a=6378137.0 +b=6356752.3 '
-                            '+lon_0={sublon} +no_defs'.format(sublon=self.sublon))
-        memDs.SetProjection(srs.ExportToWkt())
-
-        # 设置仿射变换
-        memDs.SetGeoTransform([-5496000, self.resolution*100*1000, 0,
-                               5496000, 0, -self.resolution*100*1000])
-
         # 影像裁剪
-        warpDs = gdal.Warp('', memDs, format='MEM', dstSRS=dstSRS,
+        warpDs = gdal.Warp('', srcDS, format='MEM', dstSRS=dstSRS,
                            cutlineDSName=shpname, cropToCutline=True,
                            outputBounds=extent, resampleAlg=resampleAlg,
                            xRes=self.resolution, yRes=self.resolution,
@@ -253,87 +223,6 @@ class ahiscene(ahi_read_hsd, ahisearchtable) :
 
         img = Image.fromarray(rgbArray.astype(np.uint8))
 
-    def DS2Tiff(self, outname, srcDS):
-        ''' 保存为GeoTiff文件 '''
-
-        data  = srcDS.ReadAsArray()
-        trans = srcDS.GetGeoTransform()
-        prj   = srcDS.GetProjection()
-        fillvalue = srcDS.GetRasterBand(1).GetNoDataValue()
-
-        writetiff(outname, data, trans, prj, fillvalue=fillvalue)
-
-    def DS2Netcdf(self, outname, sdsname, srcDS):
-        ''' 保存为NetCDF文件 '''
-
-        if srcDS is None :
-            raise Exception('srcDS为None')
-
-        data  = srcDS.ReadAsArray()
-        trans = srcDS.GetGeoTransform()
-        prj   = srcDS.GetProjection()
-        fillvalue = srcDS.GetRasterBand(1).GetNoDataValue()
-
-        if len(data.shape) == 2 :
-            level, (height, width) = 1, data.shape
-        elif len(data.shape) == 3 :
-            level, height, width = data.shape
-        else:
-            raise Exception('仅暂支持2D或3D数据的输出')
-
-        lon = trans[0] + trans[1] * np.arange(width)
-        lat = trans[3] + trans[5] * np.arange(height)
-
-
-        dictfileinfo = {
-            'trans' : trans,
-            'prj'   : prj
-        }
-        writenc_fileinfo(outname, dictfileinfo=dictfileinfo, overwrite=1)
-        writenc(outname, 'latitude',  lat, overwrite=0)
-        writenc(outname, 'longitude', lon, overwrite=0)
-        if level == 1 :
-            writenc(outname, sdsname, data, dimension=('latitude', 'longitude'), overwrite=0)
-        else:
-            writenc(outname, 'level', np.arange(level), overwrite=0)
-            writenc(outname, sdsname, data, dimension=('level', 'latitude', 'longitude'),
-                    overwrite=0, fill_value=fillvalue)
-
-    def DS2Hdf(self, outname, sdsname, srcDS):
-        ''' 保存为HDF5文件 '''
-        if srcDS is None :
-            raise Exception('srcDS为None')
-
-        data  = srcDS.ReadAsArray()
-        trans = srcDS.GetGeoTransform()
-        prj   = srcDS.GetProjection()
-        fillvalue = srcDS.GetRasterBand(1).GetNoDataValue()
-        if data is None :
-            raise Exception('读取图层数据失败')
-
-        if len(data.shape) == 2 :
-            level, (height, width) = 1, data.shape
-        elif len(data.shape) == 3 :
-            level, height, width = data.shape
-        else:
-            raise Exception('仅暂支持2D或3D数据的输出')
-
-        lon = trans[0] + trans[1] * np.arange(width)
-        lat = trans[3] + trans[5] * np.arange(height)
-        dictfileinfo = {
-            'trans' : trans,
-            'prj'   : prj
-        }
-        dictsdsinfo = {
-            'name' : sdsname,
-            'fillvalue' : fillvalue
-        }
-        writenc_fileinfo(outname, dictfileinfo=dictfileinfo, overwrite=1)
-        writehdf(outname,  'latitude',  lat, overwrite=0)
-        writehdf(outname, 'longitude',  lon, overwrite=0)
-        writehdf(outname,     sdsname, data, overwrite=0, dictsdsinfo=dictsdsinfo)
-
-
     def SetHSDInfo(self, filelist):
 
         BandID = None
@@ -379,15 +268,15 @@ class ahiscene(ahi_read_hsd, ahisearchtable) :
 
     def __del__(self):
         pass
-        # for filename in filelist :
+        # for filename in self.Tempfile :
         #     if os.path.isfile(filename) :
         #         try:
         #             os.remove(filename)
         #         except BaseException as e :
-        #             time.sleep(2)
+        #             time.sleep(1)
         #             try:
         #                 fp = open(filename, 'r')
         #                 fp.close()
         #                 os.remove(filename)
         #             except BaseException as e :
-        #                 print(e)
+        #                 pass

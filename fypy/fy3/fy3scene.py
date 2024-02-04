@@ -30,16 +30,15 @@ from PIL import Image
 
 from fypy.tools.hdfpro import writehdf, writehdf_fileinfo,\
                               readhdf, readhdf_fileinfo
-from fypy.tools.ncpro import writenc, writenc_fileinfo
 from fypy.tools.tifpro import writetiff, GetGDALType
-
+from fypy.tools.BaseAlgorithms import BaseAlgorithms
 from fypy.fy3.fy3core import GetNameInfo, GetSourceInfo, CreateVrt,\
                              calref, calemiss, \
                              single_files, xy2latlon, latlon2xy
 
 FY3ParmDir = os.path.relpath(os.path.dirname(__file__))
 
-class fy3scene :
+class fy3scene(BaseAlgorithms) :
 
     def __init__(self, filename=None, SatID=None, InstID=None, ProdID=None,
                  RegionID=None, LevelID=None, StartTime=None, Resolution=None,
@@ -97,9 +96,9 @@ class fy3scene :
 
             return data
 
-    def Translate(self, srcdata, srclat, srclon, resolution=None,
-                  vmin=None, vmax=None, extent=None, resampleAlg='near',
-                  srcNodata=-999.0, dstNodata=None, dstSRS="EPSG:4326"):
+    def Reprojection(self, srcdata, srclat, srclon, resolution=None,
+                     vmin=None, vmax=None, extent=None, resampleAlg='near',
+                     srcNodata=-999.0, dstNodata=None, dstSRS="EPSG:4326"):
         ''' 针对FY-3卫星数据，包含MERSI 5分钟块、MWRI 升降轨、MWHS、MWTS等整圈轨道数据的投影 '''
 
         if resolution is None :
@@ -343,86 +342,6 @@ class fy3scene :
 
         self.img.save(outname)
 
-    def DS2Tiff(self, outname, srcDS):
-        ''' 保存为GeoTiff文件 '''
-
-        data  = srcDS.ReadAsArray()
-        trans = srcDS.GetGeoTransform()
-        prj   = srcDS.GetProjection()
-        fillvalue = srcDS.GetRasterBand(1).GetNoDataValue()
-
-        writetiff(outname, data, trans, prj, fillvalue=fillvalue)
-
-    def DS2Netcdf(self, outname, sdsname, srcDS):
-        ''' 保存为NetCDF文件 '''
-
-        if srcDS is None :
-            raise Exception('srcDS为None')
-
-        data  = srcDS.ReadAsArray()
-        trans = srcDS.GetGeoTransform()
-        prj   = srcDS.GetProjection()
-        fillvalue = srcDS.GetRasterBand(1).GetNoDataValue()
-
-        if len(data.shape) == 2 :
-            level, (height, width) = 1, data.shape
-        elif len(data.shape) == 3 :
-            level, height, width = data.shape
-        else:
-            raise Exception('仅暂支持2D或3D数据的输出')
-
-        lon = trans[0] + trans[1] * np.arange(width)
-        lat = trans[3] + trans[5] * np.arange(height)
-
-
-        dictfileinfo = {
-            'trans' : trans,
-            'prj'   : prj
-        }
-        writenc_fileinfo(outname, dictfileinfo=dictfileinfo, overwrite=1)
-        writenc(outname, 'latitude',  lat, overwrite=0)
-        writenc(outname, 'longitude', lon, overwrite=0)
-        if level == 1 :
-            writenc(outname, sdsname, data, dimension=('latitude', 'longitude'), overwrite=0)
-        else:
-            writenc(outname, 'level', np.arange(level), overwrite=0)
-            writenc(outname, sdsname, data, dimension=('level', 'latitude', 'longitude'),
-                    overwrite=0, fill_value=fillvalue)
-
-    def DS2Hdf(self, outname, sdsname, srcDS):
-        ''' 保存为HDF5文件 '''
-        if srcDS is None :
-            raise Exception('srcDS为None')
-
-        data  = srcDS.ReadAsArray()
-        trans = srcDS.GetGeoTransform()
-        prj   = srcDS.GetProjection()
-        fillvalue = srcDS.GetRasterBand(1).GetNoDataValue()
-        if data is None :
-            raise Exception('读取图层数据失败')
-
-        if len(data.shape) == 2 :
-            level, (height, width) = 1, data.shape
-        elif len(data.shape) == 3 :
-            level, height, width = data.shape
-        else:
-            raise Exception('仅暂支持2D或3D数据的输出')
-
-        lon = trans[0] + trans[1] * np.arange(width)
-        lat = trans[3] + trans[5] * np.arange(height)
-        dictfileinfo = {
-            'trans' : trans,
-            'prj'   : prj
-        }
-        dictsdsinfo = {
-            'name' : sdsname,
-            'fillvalue' : fillvalue
-        }
-        writenc_fileinfo(outname, dictfileinfo=dictfileinfo, overwrite=1)
-        writehdf(outname,  'latitude',  lat, overwrite=0)
-        writehdf(outname, 'longitude',  lon, overwrite=0)
-        writehdf(outname,     sdsname, data, overwrite=0, dictsdsinfo=dictsdsinfo)
-
     def Parse(self, filename=None, SatID=None, InstID=None, ProdID=None,
               RegionID=None, LevelID=None, StartTime=None, Resolution=None,
               Proj=None, CType=None):
@@ -521,16 +440,4 @@ class fy3scene :
                 except BaseException as e:
                     print('删除%s失败' %(item))
 
-        # 删除系统中由fypy创建的临时文件
-        tmp_file = tempfile.NamedTemporaryFile(prefix="tmp_fypy_", delete=True)
-        temphdf = tmp_file.name + '.hdf'
-        tempdir = os.path.dirname(temphdf)
-        filelist = glob.glob(os.path.join(tempdir, 'tmp_fypy_*'))
-        for filename in filelist :
-            if (time.time() - os.stat(filename).st_mtime ) > 5*24*60*60 :
-                if os.path.isfile(filename) :
-                    try:
-                        os.remove(filename)
-                        # print(item)
-                    except BaseException as e:
-                        print('删除%s失败' %(filename))
+

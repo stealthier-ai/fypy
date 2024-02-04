@@ -9,15 +9,16 @@ FY-4数据辐射定标、裁剪
 
     from fypy.fy4 import fy4scene
 
-    # filename = r'FY4A-_AGRI--_N_REGC_1047E_L1-_FDI-_MULT_NOM_20240129041500_20240129041917_4000M_V0001.HDF'
+    filename = r'FY4A-_AGRI--_N_REGC_1047E_L1-_FDI-_MULT_NOM_20240129041500_20240129041917_4000M_V0001.HDF'
     # filename = r'FY4A-_AGRI--_N_DISK_1047E_L1-_FDI-_MULT_NOM_20240129040000_20240129041459_4000M_V0001.HDF'
-    filename = r'FY4A-_AGRI--_N_DISK_1047E_L1-_FDI-_MULT_NOM_20240129040000_20240129041459_1000M_V0001.HDF'
+    # filename = r'FY4A-_AGRI--_N_DISK_1047E_L1-_FDI-_MULT_NOM_20240129040000_20240129041459_1000M_V0001.HDF'
 
-    mc_pro = fy4scene(filename=filename)
-    band1 = mc_pro.Calibration(filename, bandID=2, fillvalue=65535)
+    scene = fy4scene(filename=filename)
+    ds = scene.Calibration(filename, bandID=2, fillvalue=65535)
+    geofile = r'FY4A-_AGRI--_N_REGC_1047E_L1-_GEO-_MULT_NOM_20240129041500_20240129041917_4000M_V0001.HDF'
+    ds = scene.GetGEOData(geofile, 'NOMSatelliteAzimuth')
+    ds = scene.Clip(ds, extent=[70, 20, 135, 55])
 
-    ds = mc_pro.Clip(band1, extent=[70, 20, 135, 55])
-    mc_pro.DS2Tiff(r'test.tif', srcDS=ds)
     mc_pro.DS2Netcdf(r'test.nc', 'data', srcDS=ds)
     mc_pro.DS2Hdf(r'test.hdf', 'data', srcDS=ds)
 

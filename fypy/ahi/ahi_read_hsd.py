@@ -579,67 +579,10 @@ class ahi_read_hsd :
                         # os.remove(tmpfilepath)
                         return None
                 return tmpfilepath
+            else:
+                return None
         except BaseException :
             return None
-
-    # def unzip_file(self, filename):
-    #     """Unzip the file if file is bzipped = ending with 'bz2'."""
-    #     # pathin = os.path.dirname(filename)
-    #     # name = os.path.basename(filename)
-    #     if filename.endswith('bz2'):
-    #         # fdn, tmpfilepath = tempfile.mkstemp()
-    #         tmpfilepath = filename.replace('.bz2','')
-    #         if os.path.isfile(tmpfilepath) :
-    #             return tmpfilepath
-    #         print("Using temp file for BZ2 decompression: %s", tmpfilepath)
-    #         # try pbzip2
-    #         pbzip = which('pbzip2')
-    #         # Run external pbzip2
-    #         if pbzip is not None:
-    #             n_thr = os.environ.get('OMP_NUM_THREADS')
-    #             if n_thr:
-    #                 runner = [pbzip,
-    #                           '-dc',
-    #                           '-p'+str(n_thr),
-    #                           filename]
-    #             else:
-    #                 runner = [pbzip,
-    #                           '-dc',
-    #                           filename]
-    #             p = Popen(runner, stdout=PIPE, stderr=PIPE)
-    #             stdout = BytesIO(p.communicate()[0])
-    #             status = p.returncode
-    #             if status != 0:
-    #                 raise IOError("pbzip2 error '%s', failed, status=%d"
-    #                               % (filename, status))
-    #             with closing(open(tmpfilepath, 'wb')) as ofpt:
-    #                 try:
-    #                     stdout.seek(0)
-    #                     shutil.copyfileobj(stdout, ofpt)
-    #                 except IOError:
-    #                     import traceback
-    #                     traceback.print_exc()
-    #                     print("Failed to read bzipped file %s",
-    #                           str(filename))
-    #                     os.remove(tmpfilepath)
-    #                     raise
-    #             return tmpfilepath
-    #
-    #         # Otherwise, fall back to the original method
-    #         bz2file = bz2.BZ2File(filename)
-    #         with closing(open(tmpfilepath, 'wb')) as ofpt:
-    #             try:
-    #                 ofpt.write(bz2file.read())
-    #                 ofpt.close()
-    #             except IOError:
-    #                 import traceback
-    #                 traceback.print_exc()
-    #                 print("Failed to read bzipped file %s", str(filename))
-    #                 # os.remove(tmpfilepath)
-    #                 return None
-    #         return tmpfilepath
-    #
-    #     return None
 
     def _check_fpos(self, fp_, fpos, offset, block):
         """Check file position matches blocksize."""

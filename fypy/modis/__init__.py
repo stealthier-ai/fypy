@@ -13,9 +13,6 @@
 @Description :
 
 '''
-import os
-import sys
-import numpy as np
-import datetime
+from fypy.modis.modisscene import modisscene
 
 
